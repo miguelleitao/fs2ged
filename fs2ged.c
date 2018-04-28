@@ -39,6 +39,7 @@ int error(char *msg) {
 }
 
 char *parseString(char *field, char *fval) {
+	printf("parsing string: '%s'\n", fval);
     assert( *fval == '"' );
     char *val = fval+1;
     char *val_end = strchr(val,'"');
@@ -72,6 +73,7 @@ person_t *parsePerson(char *line) {
 	    continue;
 	}
 	if ( *p == '"' ) {
+		printf("parsing filed name in '%s'\n",p);
 	    char *fname = p+1;
 	    char *fn_end = strchr(fname,'"');
 	    if ( fn_end ) *fn_end = 0;
@@ -81,6 +83,7 @@ person_t *parsePerson(char *line) {
 	    if ( ! strcmp(fname,"fid") ) {
 		p = parseString(newP->id, fval);
 	    }
+	    else printf("unkown field\n");
 	}
     }
 }
