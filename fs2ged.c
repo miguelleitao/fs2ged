@@ -1,13 +1,15 @@
-
-
-/* fs2ged
-*/
+/*
+ * fs2ged.c
+ *
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
 
 #include <string.h>
 #include <assert.h>
+
+#define MAX_LINE_LEN (860)
 
 typedef char pId_t[10];
 typedef char date_t[20];
@@ -34,19 +36,61 @@ typedef struct {
 } person_t;
     
 int error(char *msg) {
-    fprintf (stderr,"%s\n",msg);
+    fprintf (stderr,"Error %s\n",msg);
     exit(1);
 }
 
-char *parseString(char *field, char *fval) {
-	printf("parsing string: '%s'\n", fval);
-    assert( *fval == '"' );
-    char *val = fval+1;
+char *parseString(char *s) {
+	//printf("parsing string: '%s'\n", s);
+    assert( *s == '"' );
+    char *val = s+1;
     char *val_end = strchr(val,'"');
     if ( val_end ) *val_end = 0;
     else error("Parsing field value");
-    strcpy(field, val);
-    return val_end + 2;
+    return val_end + 1;
+}
+
+
+char *parseField(char *s) {
+    if ( *s == '"' ) 
+	return parseString(s);
+    if ( *s == '[' ) {
+	    //printf("parsing field in '%s'\n",s);
+	    int cntBrac = 0;
+	    int outAsp = 1;
+	    while( *s ) {
+		switch (*s) {
+		    case '"':
+			outAsp = 1 - outAsp;
+			break;
+		    case '[': 
+			cntBrac += outAsp;
+			break;
+		    case ']':
+			cntBrac -= outAsp;
+			break;
+		}
+		if ( cntBrac==0 ) {
+		    *s = 0;
+		    return s+1;
+		}
+		s++;
+	    }
+	    error("Parsing field");
+	    return s;
+    }
+    // Must be an unenclosed number or word
+    char *s_end = strchr(s,',');
+    if ( s_end ) {
+	*s_end = 0;
+	return s_end+1;
+    }
+    s_end = strchr(s,'}');
+    if ( s_end ) {
+	*s_end = 0;
+	return s_end+1;
+    }
+    return s+strlen(s);
 }
 
 void printString(char *fname, char *val) {
@@ -67,49 +111,61 @@ person_t *parsePerson(char *line) {
 
     char *p = line;
     if ( *p=='{' ) p++;
-    while( *p && *p!='}' ) {
+    char *fname = NULL;
+    char *fval = NULL;
+    while( *p && *p!='}' && *p!='\n' ) {
 	if ( *p==' ' || *p==',' ) {
 	    p++;
 	    continue;
 	}
-	if ( *p == '"' ) {
-		printf("parsing filed name in '%s'\n",p);
-	    char *fname = p+1;
-	    char *fn_end = strchr(fname,'"');
-	    if ( fn_end ) *fn_end = 0;
-	    else error("Parsing field name");
-	    assert(fn_end[1]==':');
-	    char *fval = fn_end+2;
-	    if ( ! strcmp(fname,"fid") ) {
-		p = parseString(newP->id, fval);
+        fname = p+1;
+	p = parseString(p);
+	assert( *p==':' );
+	p += 2;
+	if ( *p=='"' || *p=='[' ) fval = p+1;
+	else fval = p;
+	p = parseField(p);
+        printf("fname:'%s' fval:'%s'\n",fname,fval);
+
+    	if ( ! strcmp(fname,"fid") ) {
+		printf("  NAME:%s\n",fval);
 	    }
-	    else printf("unkown field\n");
-	}
+    	else printf("unkown field %s\n",fname);
     }
+    return newP;
 }
 
 int parseFile(char *fname) {
    FILE *fp;
-   char line[260];
+   char line[MAX_LINE_LEN];
 
    /* opening file for reading */
-   fp = fopen(fname , "r");
-   if (fp == NULL) {
-      perror("Error opening file");
-      return(-1);
+   if ( fname ) {
+   	fp = fopen(fname , "r");
+	if (fp == NULL) {
+	   perror("Error opening file");
+	   return(-1);
+	}
    }
-   while( fgets(line, 260, fp)!=NULL ) {
+   else fp = stdin;
+
+   while( fgets(line, MAX_LINE_LEN, fp)!=NULL ) {
       /* writing content to stdout */
       person_t *p = parsePerson(line);
-      if ( p ) printPerson(p);
+      if ( p ) {
+	printPerson(p);
+      	free(p);
+      }
    }
    fclose(fp);
+   return 0;
 }
 
 
 int main(int argc, char **argv) {
-
-    parseFile("out1.fs");
+    char *fname = NULL;
+    if ( argc>1 ) fname = argv[1];
+    parseFile(fname);
 
 }
 

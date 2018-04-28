@@ -4,6 +4,8 @@ EXEC=fs2ged
 
 TARGETS=${EXEC}
 
+CFLAGS=-Wall -Wextra -O1
+
 all: ${TARGETS}
 
 ${EXEC}: ${EXEC}.c
