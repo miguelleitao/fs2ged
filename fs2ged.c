@@ -135,6 +135,22 @@ person_t *parsePerson(char *line) {
     return newP;
 }
 
+void printHeader(FILE *fout) {
+   fprintf(fout, "0 HEAD\n");
+   fprintf(fout, "1 SOUR fs2ged\n");
+   fprintf(fout, "2 NAME Converted from FamilySearch exported records\n");
+   fprintf(fout, "2 VERS 0.1\n");
+   fprintf(fout, "1 DEST FILE\n");
+   fprintf(fout, "1 DATE 25 MAR 2018\n");
+   fprintf(fout, "1 GEDC\n");
+   fprintf(fout, "2 VERS 5.5\n");
+   fprintf(fout, "2 FORM LINEAGE-LINKED\n");
+   fprintf(fout, "1 CHAR UTF-8\n");
+   fprintf(fout, "1 PLAC\n");
+   fprintf(fout, "2 FORM Lugar, Freguesia, Conselho, District/Province, Country\n");
+   fprintf(fout, "1 SUBM @SUBM@\n");
+}
+
 int parseFile(char *fname) {
    FILE *fp;
    char line[MAX_LINE_LEN];

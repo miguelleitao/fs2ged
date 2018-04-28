@@ -11,6 +11,9 @@ all: ${TARGETS}
 ${EXEC}: ${EXEC}.c
 	${CC} ${CFLAGS} -o $@ $^
 
+test: ${EXEC}
+	./${EXEC} example.fs >example.gedcom
+
 commit:
 	git add *.c Makefile *.fs README.md
 	git commit -m "new update"
