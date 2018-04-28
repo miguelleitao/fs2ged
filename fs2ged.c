@@ -12,13 +12,14 @@
 #define MAX_LINE_LEN (860)
 
 typedef char pId_t[10];
-typedef char date_t[20];
-typedef char place_t[40];
+typedef char *date_t;
+typedef char *place_t;
 
 typedef struct {
     pId_t	id;
-    pId_t	father;
-    pId_t	mother;
+    //pId_t	father;
+    //pId_t	mother;
+    pId_t	parents[2];
     short int	partners;
     pId_t	*partner;
     short int 	children;
@@ -33,8 +34,18 @@ typedef struct {
 
     date_t	baptDate;
     place_t	baptPlace;
+
+    date_t	deadDate;
+    place_t	deadPlace;
 } person_t;
     
+char *fieldTable[][2] = {
+    { "given", "NAME" },
+    { "surname", "NAME" },
+    { "gender", "SEX" },
+    { "birtdate", "" }
+};
+
 int error(char *msg) {
     fprintf (stderr,"Error %s\n",msg);
     exit(1);
@@ -94,14 +105,62 @@ char *parseField(char *s) {
 }
 
 void printString(char *fname, char *val) {
-    printf("%s: '%s'\n", fname, val);
+    if ( val )
+        printf("%s: '%s'\n", fname, val);
 }
 
 void printPerson(person_t *p) {
     printString("id", p->id);
     printString("given", p->givenName);
     printString("last", p->surName);
+    printString("birth date", p->birthDate);
     printString("birth place", p->birthPlace);
+    printString("batism date", p->baptDate);
+    printString("batism place", p->baptPlace);
+    printString("dead date", p->deadDate);
+    printString("dead place", p->deadPlace);
+}
+
+void setPersonFieldString(char **fname, char *fval) {
+    *fname = strdup(fval);
+}
+
+void setPersonFieldPid(pId_t *fname, char *fval) {
+    strncpy(*fname,fval,8);
+}
+
+void setPersonFieldCouple(pId_t *fname, char *fval) {
+    strncpy(*fname,fval,8);
+}
+
+#define setPersonField(name,fld,type) \
+    if ( ! strcmp(fname,name) ) \
+	setPersonField##type(&(newP->fld),fval);
+
+char *parsePersonField(person_t *newP, char *fname, char *p) {
+    char *fval = p;
+    if ( *p=='"' || *p=='[' ) fval += 1;
+    char *fend = parseField(p);
+    printf("fname:'%s' fval:'%s'\n",fname,fval);
+
+    setPersonField("fid",	id,		Pid);
+    setPersonField("given",	givenName,	String);
+    setPersonField("surname",	surName,	String);
+ 
+    setPersonField("birtdate",  birthDate, 	String);
+    setPersonField("birtplac",  birthPlace, 	String);
+    setPersonField("chrdate",   baptDate, 	String);
+    setPersonField("chrplac",   baptPlace, 	String);
+    setPersonField("deatdate",	deadDate,	String);
+    setPersonField("deatplac",	deadPlace,	String);
+
+    //setPersonField("ch",id,String);
+
+ 
+
+   // date_t	baptDate;
+    
+    return fend;
 }
 
 person_t *parsePerson(char *line) {
@@ -112,7 +171,7 @@ person_t *parsePerson(char *line) {
     char *p = line;
     if ( *p=='{' ) p++;
     char *fname = NULL;
-    char *fval = NULL;
+    //char *fval = NULL;
     while( *p && *p!='}' && *p!='\n' ) {
 	if ( *p==' ' || *p==',' ) {
 	    p++;
@@ -122,15 +181,13 @@ person_t *parsePerson(char *line) {
 	p = parseString(p);
 	assert( *p==':' );
 	p += 2;
+        p = parsePersonField(newP,fname,p);
+/*
 	if ( *p=='"' || *p=='[' ) fval = p+1;
 	else fval = p;
 	p = parseField(p);
         printf("fname:'%s' fval:'%s'\n",fname,fval);
-
-    	if ( ! strcmp(fname,"fid") ) {
-		printf("  NAME:%s\n",fval);
-	    }
-    	else printf("unkown field %s\n",fname);
+*/
     }
     return newP;
 }
@@ -164,9 +221,12 @@ int parseFile(char *fname) {
 	}
    }
    else fp = stdin;
-
+   FILE *fout = stdout;
+   printHeader(fout);
+   int n=0;  // number of individuals
    while( fgets(line, MAX_LINE_LEN, fp)!=NULL ) {
       /* writing content to stdout */
+      fprintf(fout,"@I%d@\n",n+1);
       person_t *p = parsePerson(line);
       if ( p ) {
 	printPerson(p);
