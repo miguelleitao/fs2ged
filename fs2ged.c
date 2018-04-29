@@ -10,8 +10,9 @@
 #include <assert.h>
 
 #define MAX_LINE_LEN (860)
+#define MAX_PID_SIZE (10)
 
-typedef char pId_t[10];
+typedef char pId_t[MAX_PID_SIZE+2];
 typedef char *date_t;
 typedef char *place_t;
 
@@ -39,12 +40,16 @@ typedef struct {
     place_t	deadPlace;
 } person_t;
     
+
+// not used
 char *fieldTable[][2] = {
     { "given", "NAME" },
     { "surname", "NAME" },
     { "gender", "SEX" },
     { "birtdate", "" }
 };
+
+FILE *fout = NULL;
 
 int error(char *msg) {
     fprintf (stderr,"Error %s\n",msg);
@@ -111,14 +116,16 @@ void printString(char *fname, char *val) {
 
 void printPerson(person_t *p) {
     printString("id", p->id);
-    printString("given", p->givenName);
-    printString("last", p->surName);
-    printString("birth date", p->birthDate);
-    printString("birth place", p->birthPlace);
-    printString("batism date", p->baptDate);
-    printString("batism place", p->baptPlace);
-    printString("dead date", p->deadDate);
-    printString("dead place", p->deadPlace);
+    if (p->givenName) 	printString("given", p->givenName);
+    if (p->surName) 	printString("last", p->surName);
+    if (p->birthDate)	printString("birth date", p->birthDate);
+    if (p->birthPlace) 	printString("birth place", p->birthPlace);
+    if (p->baptDate)	printString("batism date", p->baptDate);
+    if (p->baptPlace) 	printString("batism place", p->baptPlace);
+    if (p->deadDate)	printString("dead date", p->deadDate);
+    if (p->deadPlace) 	printString("dead place", p->deadPlace);
+    printString("father", p->parents[0]);
+    printString("mother", p->parents[1]);
 }
 
 void setPersonFieldString(char **fname, char *fval) {
@@ -126,11 +133,24 @@ void setPersonFieldString(char **fname, char *fval) {
 }
 
 void setPersonFieldPid(pId_t *fname, char *fval) {
-    strncpy(*fname,fval,8);
+    strncpy(*fname,fval,MAX_PID_SIZE);
+    assert( strlen(*fname)>7 );
 }
 
-void setPersonFieldCouple(pId_t *fname, char *fval) {
-    strncpy(*fname,fval,8);
+void setPersonFieldCouple(pId_t (*fname)[2], char *fval) {
+    if ( ! strcmp(fval,"null") ) {
+	strcpy( (*fname)[0], "" );
+	strcpy( (*fname)[1], "" );
+	return;
+    }
+    char *pend = parseString(fval);
+//printf("**father1:'%s'\n", fval+1);
+    strncpy((*fname)[0], fval+1, MAX_PID_SIZE);
+//printf("**father:'%s'\n", *fname[0]);
+    fval = pend+2;
+//printf("**mother:'%s'\n", fval);
+    parseString(fval);
+    strncpy((*fname)[1], fval+1, MAX_PID_SIZE);
 }
 
 #define setPersonField(name,fld,type) \
@@ -154,6 +174,8 @@ char *parsePersonField(person_t *newP, char *fname, char *p) {
     setPersonField("deatdate",	deadDate,	String);
     setPersonField("deatplac",	deadPlace,	String);
 
+    setPersonField("parents",	parents,	Couple);
+
     //setPersonField("ch",id,String);
 
  
@@ -163,11 +185,42 @@ char *parsePersonField(person_t *newP, char *fname, char *p) {
     return fend;
 }
 
-person_t *parsePerson(char *line) {
+void freePerson(person_t *p) {
+    if ( ! p ) return;
+    if ( p->givenName ) free( p->givenName );
+    if ( p->surName ) free( p->surName );
+    if ( p->birthDate ) free( p->birthDate );
+    if ( p->birthPlace ) free( p->birthPlace );
+    if ( p->baptDate ) free( p->baptDate );
+    if ( p->baptPlace ) free( p->baptPlace );
+    if ( p->deadDate ) free( p->deadDate );
+    if ( p->deadPlace ) free( p->deadPlace );
+    free(p);
+}
+
+person_t *newPerson() {
     person_t *newP;
     newP = malloc(sizeof(person_t));
     if ( ! newP ) return newP;
 
+    strcpy(newP->id, "");
+    strcpy(newP->parents[0], "");
+    strcpy(newP->parents[1], "");
+
+    newP->birthDate = NULL;
+    newP->birthPlace = NULL;
+    newP->baptDate = NULL;
+    newP->baptPlace = NULL;
+    newP->deadDate = NULL;
+    newP->deadPlace = NULL;
+    return newP;
+}
+
+person_t *parsePerson(char *line) {
+    person_t *newP;
+    newP = newPerson();
+    if ( ! newP ) return newP;
+   
     char *p = line;
     if ( *p=='{' ) p++;
     char *fname = NULL;
@@ -221,7 +274,6 @@ int parseFile(char *fname) {
 	}
    }
    else fp = stdin;
-   FILE *fout = stdout;
    printHeader(fout);
    int n=0;  // number of individuals
    while( fgets(line, MAX_LINE_LEN, fp)!=NULL ) {
@@ -230,8 +282,9 @@ int parseFile(char *fname) {
       person_t *p = parsePerson(line);
       if ( p ) {
 	printPerson(p);
-      	free(p);
+      	freePerson(p);
       }
+      n++;
    }
    fclose(fp);
    return 0;
@@ -240,8 +293,15 @@ int parseFile(char *fname) {
 
 int main(int argc, char **argv) {
     char *fname = NULL;
+    fout = stdout;
     if ( argc>1 ) fname = argv[1];
+    if ( argc>2 ) {
+	fout = fopen(argv[2],"w");
+	if ( ! fout )
+	    error("Opening output file");
+    }
     parseFile(fname);
-
+    fclose(fout);
+    exit(0);
 }
 
