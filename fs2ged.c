@@ -198,6 +198,7 @@ void outputFamily(family_t *f) {
     // 1 MARR
     for( int i=0 ; i<f->children ; i++ ) 
 	outputPersonNum("1 CHIL", f->child[i]);
+    outputTag("0 TRLR\n");
 
 }
 void printString(char *fname, char *val) {
@@ -544,7 +545,7 @@ int parseFile(char *fname) {
 	assert(nPersons<=maxPersons);
       }
    }
-   outputTag("0 TRLR\n");
+   //outputTag("0 TRLR\n");
    fclose(fp);
    return 0;
 }
