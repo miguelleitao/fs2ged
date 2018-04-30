@@ -82,6 +82,24 @@ int error(char *msg) {
     exit(1);
 }
 
+char *encodeString(char *s) {
+    char *d = strchr(s,'\\');
+    if ( ! d ) return s;
+    if ( d[1]=='u' ) {
+	char nstr[5];
+	memcpy(nstr,d+2,4);
+	nstr[4] = 0;
+	long cnum = strtol(nstr,NULL,16);
+	if ( cnum>=0 && cnum<256 ) {
+	    *((unsigned char *)(d)) = (unsigned char)cnum;
+	    memmove(d+1, d+6, strlen(d+5));
+	}
+    }
+    encodeString(d+1); 
+    return s;
+}
+ 
+
 int isFamily(char *line) {
     if ( strstr(line,"\"gender\": ") ) return 0;
     return 1;
@@ -145,18 +163,26 @@ void outputTag(char *fname) {
 }
 
 void outputString(char *fname, char *val) {
-    if ( val )
-        printf("%s %s\n", fname, val);
+    if ( val && strcmp(val,"null") ) {
+	encodeString(val);
+        fprintf(fout,"%s %s\n", fname, val);
+    }
 }
 
 void outputPersonNum(char *fname, unsigned int val) {
      fprintf(fout,"%s @I%u@\n", fname, val);
 }
 
+void outputFamilyNum(char *fname, unsigned int val) {
+     fprintf(fout,"%s @F%u@\n", fname, val);
+}
+
 void outputPerson(person_t *p) {
     static int personNum = 1;
     fprintf(fout,"0 @I%d@ INDI\n",personNum);
     personNum += 1;
+    encodeString(p->givenName);
+    encodeString(p->surName);
     outputTag("1 NAME ");
     if (p->givenName) {
 	outputTag(p->givenName);
@@ -175,17 +201,23 @@ void outputPerson(person_t *p) {
     outputTag("1 BIRT\n");
     if (p->birthDate)	outputString("2 DATE", p->birthDate);
     if (p->birthPlace) 	outputString("2 PLAC", p->birthPlace);
-   
-    outputTag("1 CHAN\n");
-    if (p->birthDate)	outputString("2 DATE", p->baptDate);
-    if (p->birthPlace) 	outputString("2 PLAC", p->baptPlace);
-   
-    outputTag("1 DEAD\n");
-    if (p->deadDate)	outputString("2 DATE", p->deadDate);
-    if (p->deadPlace) 	outputString("2 PLAC", p->deadPlace);
 
+    if ( p->baptDate || p->baptPlace )  {
+	    outputTag("1 BAPM\n");
+	    if (p->birthDate)	outputString("2 DATE", p->baptDate);
+	    if (p->birthPlace) 	outputString("2 PLAC", p->baptPlace);
+    }
+    if ( p->deadDate || p->deadPlace )  {
+	    outputTag("1 DEAD\n");
+	    if (p->deadDate)	outputString("2 DATE", p->deadDate);
+	    if (p->deadPlace) 	outputString("2 PLAC", p->deadPlace);
+    }
+
+    if (p->familyNum>0)	outputFamilyNum("1 FAMC", p->familyNum);
+/*
     outputString("father", p->parents[0]);
     outputString("mother", p->parents[1]);
+*/
 }
 
 void outputFamily(family_t *f) {
@@ -198,7 +230,6 @@ void outputFamily(family_t *f) {
     // 1 MARR
     for( int i=0 ; i<f->children ; i++ ) 
 	outputPersonNum("1 CHIL", f->child[i]);
-    outputTag("0 TRLR\n");
 
 }
 void printString(char *fname, char *val) {
@@ -218,6 +249,10 @@ void printPerson(person_t *p) {
     if (p->deadPlace) 	printString("dead place", p->deadPlace);
     printString("father", p->parents[0]);
     printString("mother", p->parents[1]);
+}
+
+void setPersonFieldChar(char *fname, char *fval) {
+    *fname = fval[0];
 }
 
 void setPersonFieldString(char **fname, char *fval) {
@@ -284,6 +319,7 @@ char *parsePersonField(person_t *newP, char *fname, char *p) {
     char *fend = parseField(p);
     printf("fname:'%s' fval:'%s'\n",fname,fval);
 
+    setPersonField("gender",	gender,		Char);
     setPersonField("fid",	id,		Pid);
     setPersonField("given",	givenName,	String);
     setPersonField("surname",	surName,	String);
@@ -336,9 +372,10 @@ void linkPersonsToFamilies() {
 	    continue;
 	for( unsigned int f=0 ; f<nFamilies ; f++ ) {
 	    family_t *fi = Family[f];
-	    if ( ! strcmp(pi->parents[0],fi->husbandId) &&
-		 ! strcmp(pi->parents[1],fi->wifeId) ) {
-			pi->familyNum = f;
+	    if ( (! strcmp(pi->parents[0],fi->husbandId) ) &&
+		 (! strcmp(pi->parents[1],fi->wifeId) ) ) {
+			pi->familyNum = f+1;
+printf("### PErson %u linked to family %u\n", p,f);
 			break;
 	    }
 	}
@@ -466,8 +503,9 @@ void printHeader(FILE *fout) {
    fprintf(fout, "1 DATE 25 MAR 2018\n");
    fprintf(fout, "1 GEDC\n");
    fprintf(fout, "2 VERS 5.5.1\n");
-   fprintf(fout, "2 FORM LINEAGE-LINKED\n");
-   fprintf(fout, "1 CHAR UTF-8\n");
+   //fprintf(fout, "2 FORM LINEAGE-LINKED\n");
+   fprintf(fout, "1 CHAR ISO-8859-1\n");
+   //fprintf(fout, "1 CHAR UTF-8\n");
    fprintf(fout, "1 PLAC\n");
    fprintf(fout, "2 FORM Lugar, Freguesia, Conselho, District/Province, Country\n");
    fprintf(fout, "1 SUBM @SUBM@\n");
@@ -556,6 +594,7 @@ void outputGedcom() {
 	outputPerson(Person[i]);
    for( unsigned int i=0 ; i<nFamilies ; i++ )
 	outputFamily(Family[i]);
+   outputTag("0 TRLR\n");
 }
 
 int main(int argc, char **argv) {
