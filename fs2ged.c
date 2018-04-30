@@ -9,7 +9,7 @@
 #include <string.h>
 #include <assert.h>
 
-#define MAX_LINE_LEN (860)
+#define MAX_LINE_LEN (1860)
 #define MAX_PID_SIZE (10)
 
 typedef char pId_t[MAX_PID_SIZE+2];
@@ -106,12 +106,19 @@ int isFamily(char *line) {
 }
 
 char *parseString(char *s) {
-	//printf("parsing string: '%s'\n", s);
-    assert( *s == '"' );
-    char *val = s+1;
-    char *val_end = strchr(val,'"');
+	printf("  parsing string: '%s'\n", s);
+    char *val_end = NULL;
+    if ( ! strncmp(s,"null",4) ) {
+	val_end = strchr(s,',');
+    }
+    else {
+    	assert( *s == '"' );
+    	char *val = s+1;
+    	val_end = strchr(val,'"');
+    }
     if ( val_end ) *val_end = 0;
-    else error("Parsing field value");
+    else val_end = s+strlen(s);
+    //else error("Parsing String field value");
     return val_end + 1;
 }
 
@@ -141,7 +148,8 @@ char *parseField(char *s) {
 		}
 		s++;
 	    }
-	    error("Parsing field");
+fprintf(stderr,"Field end not found \n");
+	    error("Parsing enclosed field");
 	    return s;
     }
     // Must be an unenclosed number or word
@@ -260,6 +268,10 @@ void setPersonFieldString(char **fname, char *fval) {
 }
 
 void setPersonFieldPid(pId_t *fname, char *fval) {
+    if ( ! fval || ! *fval || ! strcmp(fval,"null") ) {
+	**fname = 0;
+	return;
+    }
     strncpy(*fname,fval,MAX_PID_SIZE);
     assert( strlen(*fname)>7 );
 }
@@ -303,7 +315,8 @@ void setPersonFieldCouple(pId_t (*fname)[2], char *fval) {
 //printf("**father1:'%s'\n", fval+1);
     strncpy((*fname)[0], fval+1, MAX_PID_SIZE);
 //printf("**father:'%s'\n", *fname[0]);
-    fval = pend+2;
+    fval = pend+1;
+    while ( *fval==' ' || *fval==',' ) fval++;
 //printf("**mother:'%s'\n", fval);
     parseString(fval);
     strncpy((*fname)[1], fval+1, MAX_PID_SIZE);
@@ -560,6 +573,10 @@ int parseFile(char *fname) {
    int n=0;  // number of lines;
    while( fgets(line, MAX_LINE_LEN, fp)!=NULL ) {
       n += 1;
+      if ( strlen(line)>=MAX_LINE_LEN-2 ) {
+	fprintf(stderr,"Line %d is longer than MAX. Line Ignored.\n", n);
+	continue;
+      }
       if ( isFamily(line) ) {
 	family_t *f = parseFamily(line);
 	if ( f ) {
