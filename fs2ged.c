@@ -148,7 +148,7 @@ char *parseField(char *s) {
 		}
 		s++;
 	    }
-fprintf(stderr,"Field end not found \n");
+	    // fprintf(stderr,"Field end not found \n");
 	    error("Parsing enclosed field");
 	    return s;
     }
@@ -196,10 +196,10 @@ void outputPerson(person_t *p) {
 	outputTag(p->givenName);
 	outputTag(" ");
     }
-    if (p->surName) 	outputTag(p->surName);    
+    if (p->surName && strcmp(p->surName,"Unknown") ) 	outputTag(p->surName);    
     outputTag("\n");
     if (p->givenName) 	outputString("2 GIVN", p->givenName);
-    if (p->surName) 	outputString("2 SURN", p->surName);
+    if (p->surName && strcmp(p->surName,"Unknown") ) 	outputString("2 SURN", p->surName);
 
     char sex[4];
     sex[0] = p->gender;
@@ -216,7 +216,7 @@ void outputPerson(person_t *p) {
 	    if (p->birthPlace) 	outputString("2 PLAC", p->baptPlace);
     }
     if ( p->deadDate || p->deadPlace )  {
-	    outputTag("1 DEAD\n");
+	    outputTag("1 DEAT\n");
 	    if (p->deadDate)	outputString("2 DATE", p->deadDate);
 	    if (p->deadPlace) 	outputString("2 PLAC", p->deadPlace);
     }
@@ -235,7 +235,13 @@ void outputFamily(family_t *f) {
 
     outputPersonNum("1 HUSB", f->husbandNum);
     outputPersonNum("1 WIFE", f->wifeNum);
-    // 1 MARR
+
+    if ( f->marrDate || f->marrPlace ) {
+	outputTag("1 MARR Y\n");
+	if (f->marrDate)	outputString("2 DATE", f->marrDate);
+	if (f->marrPlace) 	outputString("2 PLAC", f->marrPlace);
+    }
+
     for( int i=0 ; i<f->children ; i++ ) 
 	outputPersonNum("1 CHIL", f->child[i]);
 
@@ -253,8 +259,8 @@ void printPerson(person_t *p) {
     if (p->birthPlace) 	printString("birth place", p->birthPlace);
     if (p->baptDate)	printString("batism date", p->baptDate);
     if (p->baptPlace) 	printString("batism place", p->baptPlace);
-    if (p->deadDate)	printString("dead date", p->deadDate);
-    if (p->deadPlace) 	printString("dead place", p->deadPlace);
+    if (p->deadDate)	printString("death date", p->deadDate);
+    if (p->deadPlace) 	printString("death place", p->deadPlace);
     printString("father", p->parents[0]);
     printString("mother", p->parents[1]);
 }
@@ -388,7 +394,7 @@ void linkPersonsToFamilies() {
 	    if ( (! strcmp(pi->parents[0],fi->husbandId) ) &&
 		 (! strcmp(pi->parents[1],fi->wifeId) ) ) {
 			pi->familyNum = f+1;
-printf("### PErson %u linked to family %u\n", p,f);
+//printf("### Person %u linked to family %u\n", p,f);
 			break;
 	    }
 	}
