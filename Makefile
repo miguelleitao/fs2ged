@@ -12,7 +12,7 @@ ${EXEC}: ${EXEC}.c
 	${CC} ${CFLAGS} -o $@ $^
 
 test: ${EXEC}
-	./${EXEC} example.fs example.ged
+	./${EXEC} jfk.fs jfk.ged
 
 commit:
 	git add *.c Makefile *.fs README.md
