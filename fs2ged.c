@@ -106,7 +106,7 @@ int isFamily(char *line) {
 }
 
 char *parseString(char *s) {
-	printf("  parsing string: '%s'\n", s);
+    // printf("  parsing string: '%s'\n", s);
     char *val_end = NULL;
     if ( ! strncmp(s,"null",4) ) {
 	val_end = strchr(s,',');
@@ -115,6 +115,8 @@ char *parseString(char *s) {
     	assert( *s == '"' );
     	char *val = s+1;
     	val_end = strchr(val,'"');
+	while( val_end && *(val_end-1)=='\\' )
+		val_end = strchr(val_end+1,'"');
     }
     if ( val_end ) *val_end = 0;
     else val_end = s+strlen(s);
@@ -132,6 +134,9 @@ char *parseField(char *s) {
 	    int outAsp = 1;
 	    while( *s ) {
 		switch (*s) {
+		    case '\\':
+			s++;
+			break;
 		    case '"':
 			outAsp = 1 - outAsp;
 			break;
@@ -336,7 +341,7 @@ char *parsePersonField(person_t *newP, char *fname, char *p) {
     char *fval = p;
     if ( *p=='"' || *p=='[' ) fval += 1;
     char *fend = parseField(p);
-    printf("fname:'%s' fval:'%s'\n",fname,fval);
+    //printf("fname:'%s' fval:'%s'\n",fname,fval);
 
     setPersonField("gender",	gender,		Char);
     setPersonField("fid",	id,		Pid);
@@ -362,7 +367,7 @@ char *parseFamilyField(family_t *newP, char *fname, char *p) {
     char *fval = p;
     if ( *p=='"' || *p=='[' ) fval += 1;
     char *fend = parseField(p);
-    printf("fname:'%s' fval:'%s'\n",fname,fval);
+    //printf("fname:'%s' fval:'%s'\n",fname,fval);
 
     setPersonField("fid",	id,		Pid);
 
